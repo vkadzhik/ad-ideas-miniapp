@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Генератор идей для рекламы</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Unbounded:wght@600;800&display=swap&subset=cyrillic" rel="stylesheet">
+<style>
+  /* ===== Цвета и шрифты — меняйте здесь ===== */
+  :root {
+    --bg: #17121F;        /* фон */
+    --card: #221B2E;      /* карточки */
+    --line: #33293F;      /* рамки */
+    --text: #F5F0FA;      /* основной текст */
+    --muted: #A79BB8;     /* подсказки */
+    --pink: #FF5C8A;      /* главная кнопка, акценты */
+    --yellow: #FFD23F;    /* выбранные варианты */
+    --on-yellow: #17121F; /* текст на жёлтом */
+    --radius: 18px;
+    --font-title: "Unbounded", system-ui, sans-serif;
+    --font-text: "Manrope", system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body {
+    font-family: var(--font-text);
+    font-size: 16px;
+    line-height: 1.45;
+    padding: 20px 16px 32px;
+    max-width: 560px;
+    margin: 0 auto;
+  }
+
+  header { margin-bottom: 18px; }
+  .badge {
+    display: inline-block;
+    font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--pink);
+    background: rgba(255, 92, 138, .12);
+    border-radius: 999px;
+    padding: 4px 10px;
+    margin-bottom: 10px;
+  }
+  h1 {
+    font-family: var(--font-title);
+    font-weight: 800;
+    font-size: 26px;
+    line-height: 1.15;
+    margin: 0 0 14px;
+  }
+  h1 span { color: var(--yellow); }
+
+  .summary {
+    background: linear-gradient(135deg, rgba(255, 92, 138, .18), rgba(255, 210, 63, .10));
+    border: 1px solid rgba(255, 92, 138, .35);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    font-size: 15px;
+    font-weight: 600;
+    min-height: 48px;
+    transition: border-color .2s;
+  }
+  .summary.empty { color: var(--muted); font-weight: 500; }
+
+  .card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-top: 12px;
+  }
+  .label {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-family: var(--font-title);
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 10px;
+  }
+  .label small {
+    font-family: var(--font-text);
+    font-weight: 500;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .label .req { color: var(--pink); }
+
+  input, textarea {
+    width: 100%;
+    font: inherit;
+    color: var(--text);
+    background: var(--bg);
+    border: 1.5px solid var(--line);
+    border-radius: 12px;
+    padding: 12px 14px;
+    outline: none;
+    transition: border-color .15s;
+  }
+  textarea { resize: vertical; min-height: 84px; }
+  input::placeholder, textarea::placeholder { color: #6E6280; }
+  input:focus, textarea:focus { border-color: var(--yellow); }
+  .invalid { border-color: var(--pink) !important; animation: shake .35s; }
+  @keyframes shake {
+    25% { transform: translateX(-5px); } 75% { transform: translateX(5px); }
+  }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    background: transparent;
+    border: 1.5px solid var(--line);
+    border-radius: 999px;
+    padding: 9px 14px;
+    cursor: pointer;
+    transition: background .15s, color .15s, border-color .15s, transform .1s;
+  }
+  .chip:active { transform: scale(.96); }
+  .chip[aria-pressed="true"] {
+    background: var(--yellow);
+    border-color: var(--yellow);
+    color: var(--on-yellow);
+  }
+  .chips.count .chip { flex: 1; font-family: var(--font-title); font-size: 18px; }
+
+  .error-text { color: var(--pink); font-size: 13px; margin-top: 8px; display: none; }
+  .error-text.show { display: block; }
+
+  /* Обычная кнопка и подсказка — только если страница открыта не в Telegram */
+  .browser-only { display: none; }
+  .no-tg .browser-only { display: block; }
+  .send-btn {
+    width: 100%;
+    margin-top: 18px;
+    font-family: var(--font-title);
+    font-weight: 600;
+    font-size: 16px;
+    color: #fff;
+    background: var(--pink);
+    border: 0;
+    border-radius: var(--radius);
+    padding: 16px;
+    cursor: pointer;
+  }
+  .send-btn:active { transform: scale(.98); }
+  .hint {
+    color: var(--muted);
+    font-size: 13px;
+    text-align: center;
+    margin-top: 10px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="badge">AI-креатив</div>
+  <h1>Генератор идей <span>для рекламы</span></h1>
+  <div class="summary empty" id="summary"></div>
+</header>
+
+<main>
+  <section class="card">
+    <div class="label">Что рекламируем <span class="req">обязательно</span></div>
+    <input id="what" maxlength="200" placeholder="Например: приложение для английского">
+    <div class="error-text" id="what-error">Напишите, что будем рекламировать</div>
+  </section>
+
+  <section class="card">
+    <div class="label">Для кого <small>необязательно</small></div>
+    <input id="audience" maxlength="200" placeholder="Например: студенты 18–25 лет">
+  </section>
+
+  <section class="card">
+    <div class="label">Площадка</div>
+    <div class="chips" data-group="platform" data-mode="single">
+      <button class="chip" data-value="Reels/TikTok/Shorts" aria-pressed="true">Reels/TikTok/Shorts</button>
+      <button class="chip" data-value="Stories">Stories</button>
+      <button class="chip" data-value="Пост в Telegram">Пост в Telegram</button>
+      <button class="chip" data-value="Таргет-баннер">Таргет-баннер</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="label">Тон</div>
+    <div class="chips" data-group="tone" data-mode="single">
+      <button class="chip" data-value="С юмором" aria-pressed="true">С юмором</button>
+      <button class="chip" data-value="Дерзкий">Дерзкий</button>
+      <button class="chip" data-value="Экспертный">Экспертный</button>
+      <button class="chip" data-value="Тёплый">Тёплый</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="label">Что нужно <small>можно несколько</small></div>
+    <div class="chips" data-group="needs" data-mode="multi" id="needs">
+      <button class="chip" data-value="Хуки" aria-pressed="true">Хуки</button>
+      <button class="chip" data-value="Сценарии видео">Сценарии видео</button>
+      <button class="chip" data-value="Тексты объявлений">Тексты объявлений</button>
+      <button class="chip" data-value="Промпты для AI-видео">Промпты для AI-видео</button>
+    </div>
+    <div class="error-text" id="needs-error">Выберите хотя бы один вариант</div>
+  </section>
+
+  <section class="card">
+    <div class="label">Сколько идей</div>
+    <div class="chips count" data-group="count" data-mode="single">
+      <button class="chip" data-value="3">3</button>
+      <button class="chip" data-value="5" aria-pressed="true">5</button>
+      <button class="chip" data-value="10">10</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="label">Пожелания <small>необязательно</small></div>
+    <textarea id="wishes" maxlength="500" placeholder="Например: без слова «скидка», упомянуть бесплатный пробный период"></textarea>
+  </section>
+
+  <div class="browser-only">
+    <button class="send-btn" id="browser-send">Сгенерировать идеи</button>
+    <p class="hint">Вы открыли страницу в браузере. Отправка брифа работает только внутри Telegram — откройте генератор кнопкой «✨ Открыть генератор» в боте.</p>
+  </div>
+</main>
+
+<script>
+  const tg = window.Telegram && window.Telegram.WebApp;
+  // Вне Telegram скрипт тоже загружается, но platform = "unknown"
+  const inTelegram = !!tg && tg.platform && tg.platform !== "unknown";
+
+  const $ = (id) => document.getElementById(id);
+  const whatInput = $("what");
+  const audienceInput = $("audience");
+  const wishesInput = $("wishes");
+  const summary = $("summary");
+
+  // Как площадка звучит в живой строке брифа
+  const PLATFORM_PHRASE = {
+    "Reels/TikTok/Shorts": "в формате Reels",
+    "Stories": "в формате Stories",
+    "Пост в Telegram": "в формате поста в Telegram",
+    "Таргет-баннер": "в формате таргет-баннера",
+  };
+
+  // ----- Выбор вариантов -----
+  document.querySelectorAll(".chips").forEach((group) => {
+    group.addEventListener("click", (e) => {
+      const chip = e.target.closest(".chip");
+      if (!chip) return;
+      if (group.dataset.mode === "single") {
+        group.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-pressed", "false"));
+        chip.setAttribute("aria-pressed", "true");
+      } else {
+        const on = chip.getAttribute("aria-pressed") === "true";
+        chip.setAttribute("aria-pressed", on ? "false" : "true");
+      }
+      if (inTelegram) tg.HapticFeedback.selectionChanged();
+      update();
+    });
+  });
+
+  function selected(name) {
+    return [...document.querySelectorAll(`[data-group="${name}"] .chip[aria-pressed="true"]`)]
+      .map((c) => c.dataset.value);
+  }
+
+  function readBrief() {
+    return {
+      what: whatInput.value.trim(),
+      audience: audienceInput.value.trim(),
+      platform: selected("platform")[0],
+      tone: selected("tone")[0],
+      needs: selected("needs"),
+      count: Number(selected("count")[0]),
+      wishes: wishesInput.value.trim(),
+    };
+  }
+
+  function ideasWord(n) {
+    const m10 = n % 10, m100 = n % 100;
+    if (m10 === 1 && m100 !== 11) return "идея";
+    if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return "идеи";
+    return "идей";
+  }
+
+  // ----- Живая строка брифа -----
+  function update() {
+    const b = readBrief();
+    if (!b.what) {
+      summary.textContent = "Опишите, что рекламируем, — и здесь соберётся ваш бриф";
+      summary.classList.add("empty");
+    } else {
+      let text = `${b.count} ${ideasWord(b.count)} для «${b.what}»`;
+      if (b.audience) text += ` (аудитория: ${b.audience})`;
+      text += ` ${PLATFORM_PHRASE[b.platform]}, тон — ${b.tone.toLowerCase()}.`;
+      text += b.needs.length
+        ? ` Нужно: ${b.needs.map((n) => n.charAt(0).toLowerCase() + n.slice(1)).join(", ")}.`
+        : " Выберите, что нужно.";
+      summary.textContent = text;
+      summary.classList.remove("empty");
+    }
+    if (b.what) { whatInput.classList.remove("invalid"); $("what-error").classList.remove("show"); }
+    if (b.needs.length) $("needs-error").classList.remove("show");
+  }
+
+  [whatInput, audienceInput, wishesInput].forEach((el) => el.addEventListener("input", update));
+
+  // ----- Проверка и отправка -----
+  function validate(b) {
+    let ok = true;
+    if (!b.what) {
+      whatInput.classList.remove("invalid");
+      void whatInput.offsetWidth; // перезапуск анимации
+      whatInput.classList.add("invalid");
+      $("what-error").classList.add("show");
+      whatInput.scrollIntoView({ behavior: "smooth", block: "center" });
+      ok = false;
+    }
+    if (!b.needs.length) {
+      $("needs-error").classList.add("show");
+      if (ok) $("needs").scrollIntoView({ behavior: "smooth", block: "center" });
+      ok = false;
+    }
+    if (!ok && inTelegram) tg.HapticFeedback.notificationOccurred("error");
+    return ok;
+  }
+
+  function submit() {
+    const brief = readBrief();
+    if (!validate(brief)) return;
+    if (inTelegram) {
+      tg.HapticFeedback.notificationOccurred("success");
+      tg.sendData(JSON.stringify(brief)); // Telegram сам закроет мини-приложение
+    } else {
+      alert("Бриф готов! Но отправить его боту можно только из Telegram.");
+    }
+  }
+
+  if (inTelegram) {
+    tg.ready();
+    tg.expand();
+    tg.setHeaderColor("#17121F");
+    tg.setBackgroundColor("#17121F");
+    tg.MainButton.setParams({
+      text: "Сгенерировать идеи",
+      color: "#FF5C8A",
+      text_color: "#FFFFFF",
+      is_visible: true,
+      is_active: true,
+    });
+    tg.MainButton.onClick(submit);
+  } else {
+    document.body.classList.add("no-tg");
+    $("browser-send").addEventListener("click", submit);
+  }
+
+  update();
+</script>
+</body>
+</html>
